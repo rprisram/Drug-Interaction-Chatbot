@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drug Interaction Chatbot</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Medical icon from lucide icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-title">
+                    <i data-lucide="stethoscope" class="header-icon"></i>
+                    <h1>Drug Interaction Chatbot</h1>
+                </div>
+                <div class="connection-status" id="connectionStatus">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Chat Interface -->
+        <main class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome message -->
+                <div class="message ai-message">
+                    <div class="message-avatar">
+                        <i data-lucide="bot" class="avatar-icon"></i>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-text">
+                            Hello! I'm your AI Drug Interaction Assistant. I can help you understand potential interactions between medications. Please note that this information is for educational purposes only and should not replace professional medical advice. Always consult with your healthcare provider before making any changes to your medication regimen.
+                        </div>
+                        <div class="message-time">Now</div>
+                    </div>
+                </div>
+
+                <!-- Example questions -->
+                <div class="example-questions">
+                    <h3>Example questions you can ask:</h3>
+                    <div class="example-grid">
+                        <button class="example-btn" data-question="Can I take aspirin with warfarin?">
+                            Can I take aspirin with warfarin?
+                        </button>
+                        <button class="example-btn" data-question="What are the interactions between metformin and alcohol?">
+                            What are the interactions between metformin and alcohol?
+                        </button>
+                        <button class="example-btn" data-question="Is it safe to take ibuprofen with blood pressure medication?">
+                            Is it safe to take ibuprofen with blood pressure medication?
+                        </button>
+                        <button class="example-btn" data-question="Can I combine acetaminophen with my antidepressant?">
+                            Can I combine acetaminophen with my antidepressant?
+                        </button>
+                        <button class="example-btn" data-question="What should I know about taking antibiotics with birth control?">
+                            What should I know about taking antibiotics with birth control?
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Disclaimer -->
+                <div class="disclaimer">
+                    <i data-lucide="alert-triangle" class="disclaimer-icon"></i>
+                    <p><strong>Important:</strong> This chatbot provides general information only and is not a substitute for professional medical advice. Always consult your healthcare provider before making medication decisions.</p>
+                </div>
+            </div>
+
+            <!-- Typing indicator -->
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="message ai-message">
+                    <div class="message-avatar">
+                        <i data-lucide="bot" class="avatar-icon"></i>
+                    </div>
+                    <div class="message-content">
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Input Area -->
+        <div class="input-container">
+            <div class="input-wrapper">
+                <div class="input-actions">
+                    <button class="btn btn--outline btn--sm" id="clearBtn">
+                        <i data-lucide="trash-2"></i>
+                        Clear Chat
+                    </button>
+                    <div class="model-selector">
+                        <label for="modelSelect">Model:</label>
+                        <select id="modelSelect" class="form-control">
+                            <option value="llama3.2">llama3.2</option>
+                            <option value="llama3.1">llama3.1</option>
+                            <option value="llama3">llama3</option>
+                            <option value="mistral">mistral</option>
+                            <option value="codellama">codellama</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-area">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="Ask about drug interactions..."
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn">
+                        <i data-lucide="send" class="send-icon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
