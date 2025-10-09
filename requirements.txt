@@ -1,3 +1,6 @@
 gradio
 requests
- 
+torch
+transformers
+bitsandbytes
+accelerate

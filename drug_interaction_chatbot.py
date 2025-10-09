@@ -2,6 +2,10 @@ import gradio as gr
 import requests
 import json
 import time
+import os
+
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", 'llama3.1:8b')
+OLLAMA_HOST_URL = os.getenv("OLLAMA_HOST_URL","http://localhost:11434")
 
 def chat_with_ollama(message, history):
     """
@@ -46,8 +50,11 @@ Behavior:
     for turn in recent_history:
         role = turn.get("role")
         content = turn.get("content", "")
-        if role in {"user", "assistant", "system"} and content:
+        if role in {"user", "system"} and content:
             messages.append({"role": role, "content": content})
+        elif role in {"assistant"} and content:
+            clean_content = content.split("--- *Ollama API")[0].strip()
+            messages.append({"role": role, "content": clean_content})
     
     # Add current message
     messages.append({"role": "user", "content": message})
@@ -56,9 +63,9 @@ Behavior:
         # Call Ollama API with error handling and retries
         start = time.time()
         response = requests.post(
-            "http://localhost:11434/v1/chat/completions",
+            f"{OLLAMA_HOST_URL}/v1/chat/completions",
             json={
-                "model": "llama3_1_8B_FT_DDI_FP16",  # You can change this to your preferred model
+                "model": OLLAMA_MODEL,  # You can change this to your preferred model
                 "messages": messages,
                 "temperature": 0.2,  # Balanced creativity vs accuracy
                 "max_tokens": 1500,  # Sufficient for detailed medical responses
@@ -79,7 +86,7 @@ Behavior:
             elapsed = end - start
             timestamp = time.strftime("%H:%M", time.localtime())
             #attributed_response = f"{ai_response}\n\n---\n*Response generated at {timestamp} using Ollama AI*"
-            attributed_response = f"{ai_response}\n\n--- *Ollama API • Llama3.1 Fine Tuned Model on Drug Interactions • {timestamp} • {elapsed:.1f}s* ---"
+            attributed_response = f"{ai_response}\n\n--- *Ollama API • {OLLAMA_MODEL} • {timestamp} • {elapsed:.1f}s* ---"
             return attributed_response
         else:
             return f"❌ **API Error:** Unable to connect to Ollama (Status: {response.status_code})\n\nPlease ensure:\n- Ollama is running (`ollama serve`)\n- The model is available (`ollama pull llama3.2`)\n- Port 11434 is accessible"
@@ -305,6 +312,7 @@ def create_drug_interaction_chatbot():
             fn=chat_with_ollama,
             title="💬 Ask About Drug Interactions",
             description="Type your questions about medication interactions, side effects, or drug safety below.",
+            show_progress='minimal',
             examples=[
                 "Can I take aspirin with warfarin? What are the risks?",
                 "What happens if I mix alcohol with metformin?",
@@ -416,7 +424,7 @@ if __name__ == "__main__":
     # Launch with optimized settings
     demo.launch(
         server_name="0.0.0.0",  # Allow external access
-        server_port=7860,       # Standard Gradio port
+       # server_port=7860,       # Standard Gradio port
         share=False,            # Set to True for public sharing
         debug=False,            # Set to True for development
         show_error=True,        # Show errors in interface

@@ -34,7 +34,11 @@ ollama pull codellama
 
 ```bash
 # Start the server (runs on localhost:11434)
+# Terminal 1
 ollama serve
+
+# Terminal 2
+OLLAMA_HOST=127.0.0.1:11435 ollama serve
 ```
 
 ### 4. Install Python Dependencies
@@ -46,7 +50,11 @@ pip install gradio requests
 ### 5. Run the Application
 
 ```bash
-python drug_interaction_chatbot.py
+# Terminal 3 (after activating .venv)
+OLLAMA_MODEL="base-llama-3.1-8b-instruct-q8_0" OLLAMA_HOST_URL="http://127.0.0.1:11434" gradio drug_interaction_chatbot.py #--server-port 7860
+#ollama run hf.co/MaziyarPanahi/Meta-Llama-3.1-8B-Instruct-GGUF:Q4_K_M
+# Terminal 4 (after activating .venv)
+GRADIO_SERVER_PORT=7861 OLLAMA_MODEL="llama3_1_8B_FT_DDI_q8" OLLAMA_HOST_URL="http://127.0.0.1:11435" gradio drug_interaction_chatbot.py #--server-port 7861
 ```
 
 The application will be available at `http://localhost:7860`
