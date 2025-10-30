@@ -1,0 +1,56 @@
+# api-config.yaml
+swagger: '2.0'
+info:
+  title: Drug Interaction API
+  version: 1.0.0
+schemes:
+  - https
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      operationId: getHealth
+      x-google-backend:
+        address: https://ddi-backend-service-1060363419011.us-central1.run.app/health 
+        jwt_audience: https://ddi-backend-service-1060363419011.us-central1.run.app 
+      responses:
+        '200':
+          description: OK
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+  /chat:
+    post:
+      summary: Process chat message
+      operationId: postChat
+      x-google-backend:
+        address: https://ddi-backend-service-1060363419011.us-central1.run.app/chat 
+        jwt_audience: https://ddi-backend-service-1060363419011.us-central1.run.app 
+      consumes:
+      - application/json
+      parameters:
+      - in: body
+        name: chatRequest
+        description: User message and history
+        required: true
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+            history:
+              type: array
+              items:
+                type: array
+                items:
+                  type: string
+      responses:
+        '200':
+          description: Successful response
+          schema:
+            type: object
+            properties:
+              response:
+                type: string

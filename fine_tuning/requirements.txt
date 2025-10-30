@@ -1,0 +1,10 @@
+python-dotenv
+torch
+gguf
+transformers 
+datasets 
+peft 
+accelerate 
+bitsandbytes
+unsloth
+llama-cpp-python

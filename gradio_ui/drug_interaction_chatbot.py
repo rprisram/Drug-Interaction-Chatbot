@@ -4,10 +4,35 @@ import json
 import time
 import os
 
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", 'llama3.1:8b')
-OLLAMA_HOST_URL = os.getenv("OLLAMA_HOST_URL","http://localhost:11434")
+#OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", 'llama3.1:8b')
+#OLLAMA_HOST_URL = os.getenv("OLLAMA_HOST_URL","http://localhost:11434")
+BACKEND_API_URL = os.environ.get('BACKEND_API_URL')
+print(f"--- Frontend starting. Backend API URL from env: {BACKEND_API_URL} ---")
 
-def chat_with_ollama(message, history):
+
+BACKEND_HEALTH_URL = f"{BACKEND_API_URL}/health" if BACKEND_API_URL else None
+BACKEND_CHAT_URL = f"{BACKEND_API_URL}/chat" if BACKEND_API_URL else None
+
+def chat_with_backend(message, history):
+    """Calls our FastAPI backend, which in turn calls Vertex AI."""
+    try:
+        payload = {"message": message, "history": history}
+        response = requests.post(f"{BACKEND_CHAT_URL}", json=payload,timeout = 65)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("response", data.get("error", "An unknown error occurred."))
+    except Exception as e:
+        return f"** Connection Error:** Cannot connect to backend API, details: {str(e)}"
+
+def check_backend_connection():
+    """Tests the connection to our FastAPI backend."""
+    try:
+        response = requests.get(f"{BACKEND_HEALTH_URL}", timeout=15)
+        return " ** Connected to Backend API!! Ready to Analyze." if response.status_code == 200 else f" **Backend API Warning:** Status {response.status_code}"
+    except requests.exceptions.RequestException as e:
+        return f"{str(e)}** Cannot connect to backend API.** Please start it: `uvicorn main:app --reload`"
+
+'''def chat_with_ollama(message, history):
     """
     Main chat function that interfaces with Ollama API for drug interaction queries
     """
@@ -42,10 +67,6 @@ Behavior:
     messages = [{"role": "system", "content": system_prompt}]
     
     # Add conversation history (limited to last 10 exchanges to manage context)
-    '''recent_history = history[-10:] if len(history) > 10 else history
-    for human, assistant in recent_history:
-        messages.append({"role": "user", "content": human})
-        messages.append({"role": "assistant", "content": assistant})'''
     recent_history = history[-20:] if history else []
     for turn in recent_history:
         role = turn.get("role")
@@ -116,7 +137,7 @@ def check_ollama_connection():
             return f"❌ Connection failed (Status: {response.status_code})"
     except:
         return "❌ **Cannot connect to Ollama.** Please start with: `ollama serve`"
-
+'''
 def create_drug_interaction_chatbot():
     """
     Create the complete Gradio interface for the drug interaction chatbot
@@ -233,7 +254,7 @@ def create_drug_interaction_chatbot():
     """
     
     with gr.Blocks(
-        title="🏥 Drug Interaction Chatbot - Powered by Ollama",
+        title="🏥 Drug Interaction Chatbot - Powered by Vertex AI",
         theme=gr.themes.Soft(
             primary_hue="blue",
             secondary_hue="green",
@@ -246,7 +267,7 @@ def create_drug_interaction_chatbot():
         gr.HTML("""
         <div class="header-title">
             <h1>🏥 Drug Interaction Chatbot</h1>
-            <h3>🤖 Powered by Ollama & GGUF Models</h3>
+            <h3>🤖 Powered by Model in Google Vertex AI</h3>
             <p><em>Intelligent pharmaceutical safety analysis at your fingertips</em></p>
         </div>
         """)
@@ -268,13 +289,13 @@ def create_drug_interaction_chatbot():
         # Connection Status and Test
         with gr.Row():
             with gr.Column(scale=2):
-                gr.HTML('<div class="connection-status"><h4>🔌 Ollama Connection Status</h4></div>')
+                gr.HTML('<div class="connection-status"><h4>🔌 Backend API Connection Status</h4></div>')
             with gr.Column(scale=1):
                 test_btn = gr.Button("🔍 Test Connection", variant="secondary")
                 
         connection_output = gr.Textbox(
             label="Connection Status",
-            value="Click 'Test Connection' to verify Ollama is running...",
+            value="Click 'Test Connection' to verify Backend API is running...",
             interactive=False,
             max_lines=3
         )
@@ -309,7 +330,7 @@ def create_drug_interaction_chatbot():
         
         chatbot = gr.ChatInterface(
             type="messages",
-            fn=chat_with_ollama,
+            fn=chat_with_backend,
             title="💬 Ask About Drug Interactions",
             description="Type your questions about medication interactions, side effects, or drug safety below.",
             show_progress='minimal',
@@ -377,21 +398,9 @@ def create_drug_interaction_chatbot():
         with gr.Accordion("⚙️ Technical Information", open=False):
             gr.Markdown("""
             ### System Information:
-            - **AI Model:** Ollama-served GGUF models (configurable)
-            - **API Endpoint:** http://localhost:11434/v1/chat/completions
-            - **Processing:** Local, privacy-preserving analysis
-            - **Data Sources:** AI training data (not real-time drug databases)
-            
-            ### Setup Requirements:
-            1. **Install Ollama:** `curl -fsSL https://ollama.com/install.sh | sh`
-            2. **Download Model:** `ollama pull llama3.2`
-            3. **Start Server:** `ollama serve`
-            4. **Run This App:** `python drug_interaction_chatbot.py`
-            
-            ### Troubleshooting:
-            - Ensure Ollama is running on port 11434
-            - Check available models with `ollama list`
-            - Test connection with the button above
+            - **AI Model:** Fine-tuned Llama 3.1 hosted on Google Vertex AI
+            - **API Endpoint:** http://<Google Cloud Run Endpoint>/chat (Application Backend)
+            - **Processing:** UI calls a secure backend, which calls Vertex AI.
             """)
         
         # Footer
@@ -405,7 +414,7 @@ def create_drug_interaction_chatbot():
         
         # Connect the test button
         test_btn.click(
-            fn=check_ollama_connection,
+            fn=check_backend_connection,
             outputs=connection_output
         )
     
@@ -418,12 +427,10 @@ if __name__ == "__main__":
     print("📋 Loading Gradio interface...")
     
     print("✅ Application ready!")
-    print("🌐 Access the chatbot at: http://localhost:7860")
-    print("🔧 Make sure Ollama is running: ollama serve")
-    
     # Launch with optimized settings
     demo.launch(
         server_name="0.0.0.0",  # Allow external access
+        server_port = int(os.environ.get('PORT', 8080)),
        # server_port=7860,       # Standard Gradio port
         share=False,            # Set to True for public sharing
         debug=False,            # Set to True for development

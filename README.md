@@ -1,140 +1,156 @@
-# Drug Interaction Chatbot - Gradio Implementation
+# Drug Interaction Chatbot: Fine-Tuning & GCP Deployment
 
-## Installation
+This project implements a sophisticated Drug Interaction Chatbot using a Llama 3.1 8B model, specifically fine-tuned for this task, and deployed as a scalable, secure 3-tier architecture on Google Cloud Platform (GCP).
 
-First, install the required dependencies:
+## ☁️ Cloud Architecture Overview
 
-```bash
-pip install gradio requests
-```
-## Setup Instructions
+The application utilizes a decoupled, 3-tier architecture for robustness, security, and scalability:
 
-### 1. Install Ollama
+1.  **Frontend (Gradio UI):**
+    * A user-friendly interface built with Gradio.
+    * Containerized using Docker.
+    * Deployed as a public-facing, serverless service on **Google Cloud Run** (`ddi-frontend-service`). Handles user input and displays results. It sends requests to the API Gateway.
 
-```bash
-# Linux/macOS
-curl -fsSL https://ollama.com/install.sh | sh
+2.  **API Gateway:**
+    * Provides a secure, public HTTPS endpoint (`ddi-gateway`) for the application.
+    * Routes incoming requests from the Gradio frontend to the private Cloud Run backend service.
+    * Authenticates itself to the backend using a dedicated **Service Account** (`api-gateway-invoker@...`) and **IAM Invoker roles**, ensuring the backend remains protected.
 
-# Windows: Download from https://ollama.com/download
-```
+3.  **Application Backend (FastAPI):**
+    * A FastAPI application acting as the central logic hub.
+    * Containerized using Docker.
+    * Deployed as a **private** serverless service on **Google Cloud Run** (`ddi-backend-service`) configured with `--no-allow-unauthenticated`.
+    * Receives authenticated requests *only* from the API Gateway.
+    * Formats prompts (including history) and securely calls the Vertex AI model endpoint using its own service identity.
 
-### 2. Download a Model
+4.  **Model Serving (Vertex AI Endpoint):**
+    * Serves the **fine-tuned Llama 3.1 8B Q8_0 GGUF model** (details below).
+    * Uses a custom container (**FastAPI + `llama-cpp-python`**) deployed to a **Vertex AI Endpoint** (`ddi-endpoint`).
+    * Leverages **GPU acceleration** (e.g., NVIDIA T4) for fast inference.
+    * The container automatically downloads the specified GGUF model file from **Google Cloud Storage (GCS)** upon startup, using necessary GCS permissions granted to its internal service account.
 
-```bash
-# Recommended for medical queries
-ollama pull llama3.2
+---
 
-# Alternatives
-ollama pull llama2
-ollama pull mistral
-ollama pull codellama
-```
+## 🔬 Model Fine-Tuning Process
 
-### 3. Start Ollama Server
+The core of the chatbot is an LLM specifically adapted for Drug-Drug Interaction (DDI) detection.
 
-```bash
-# Start the server (runs on localhost:11434)
-# Terminal 1
-ollama serve
+### Data Preparation and Preprocessing
 
-# Terminal 2
-OLLAMA_HOST=127.0.0.1:11435 ollama serve
-```
+* **Data Sourcing:** The foundational dataset for DDI was sourced from the **PyTDC** library (DrugBank subset).
+* **Data Transformation:**
+    * Numerical target classes were mapped to descriptive drug impact labels.
+    * Drug synonyms were applied to enrich the dataset.
+    * The original pipe-delimited data was **augmented** into a conversational format (`user` -> `assistant`) using specific chat templates, crucial for optimal LLM training.
 
-### 4. Install Python Dependencies
+### Fine-Tuning Methodology
 
-```bash
-pip install gradio requests
-```
+* **Base Model:** Llama 3.1 8B Instruct (specifically an optimized version compatible with Unsloth).
+* **Efficient Fine-Tuning:** Powered by **Unsloth** for optimized memory usage and training speed.
+* **PEFT (LoRA):** Parameter-Efficient Fine-Tuning with Low-Rank Adaptation significantly reduced computational requirements.
+* **Hardware:** Trained on a rented **NVIDIA RTX 4090 GPU**, meticulously monitoring VRAM and disk usage.
+* **Quantization:** The base model was quantized prior to PEFT, further optimizing resource utilization.
 
-### 5. Run the Application
+### Evaluation
 
-```bash
-# Terminal 3 (after activating .venv)
-OLLAMA_MODEL="base-llama-3.1-8b-instruct-q8_0" OLLAMA_HOST_URL="http://127.0.0.1:11434" gradio drug_interaction_chatbot.py #--server-port 7860
-#ollama run hf.co/MaziyarPanahi/Meta-Llama-3.1-8B-Instruct-GGUF:Q4_K_M
-# Terminal 4 (after activating .venv)
-GRADIO_SERVER_PORT=7861 OLLAMA_MODEL="llama3_1_8B_FT_DDI_q8" OLLAMA_HOST_URL="http://127.0.0.1:11435" gradio drug_interaction_chatbot.py #--server-port 7861
-```
+* An "LLM as a Judge" approach was used, comparing the fine-tuned model against the base model on a blind test set.
+* The fine-tuned model achieved a score of **8.245** vs. the base model's **1.91**, representing a **331.68% performance increase**, validating the effectiveness of the specialized fine-tuning.
+* *(Evaluation results and scripts can be found in the `/fine-tuning/evaluation` directory - if applicable)*.
 
-The application will be available at `http://localhost:7860`
+### Model Artifact
 
-## Features
+* The final fine-tuned model was saved in the **Q8_0 GGUF** format for efficient inference.
+* This GGUF file is hosted on **Google Cloud Storage** and is downloaded by the Vertex AI serving container (Tier 4) during startup. *(The model file itself is not included in this repository due to its size)*.
+
+*(Fine-tuning notebook/scripts can be found in the `/fine-tuning` directory - if applicable)*.
+
+---
+
+## 🚀 Accessing the Deployed Application
+
+The chatbot is accessible via the public URL provided by the **Cloud Run** service hosting the Gradio frontend (`ddi-frontend-service`).
+
+Currently, Model is undeployed to save the incurred costs, for demo, redeploy the model from the endpoint from vertex AI endpoints for v6 version of the model.
+
+*(My DDI App URL structure)*
+
+`https://ddi-frontend-service-1060363419011.us-central1.run.app/`
+
+---
+
+## ✨ Features
 
 ### 🎯 Core Functionality
-- **Smart Drug Interaction Analysis** with structured responses
-- **Medical-Grade UI** with professional healthcare theme
-- **Connection Testing** to verify Ollama server status
-- **Conversation History** with context management
-- **Error Handling** with detailed troubleshooting
+- **Specialized Drug Interaction Analysis** using the **fine-tuned LLM** with structured responses.
+- **Scalable Cloud Deployment** leveraging GCP serverless (Cloud Run, API Gateway) and AI infrastructure (Vertex AI).
+- **Secure 3-Tier Architecture** with a private backend protected by API Gateway and IAM.
 
 ### 🔧 Technical Features
-- **Optimized Prompting** for medical accuracy
-- **Response Formatting** with severity levels and clinical guidance
-- **Timeout Handling** for large queries
-- **Model Flexibility** - easily switch between GGUF models
-- **Privacy-First** - all processing happens locally
+- **Optimized Prompt Engineering** including conversation history management in the backend.
+- **GPU-Accelerated Inference** via Vertex AI Endpoints serving the custom GGUF model.
+- **Containerized Services** (Docker) deployed on Cloud Run and Vertex AI.
+- **Automated Model Download** from GCS within the serving container.
+- **Serverless Scaling** (including scale-to-zero) via Cloud Run for frontend/backend.
+- **Managed Authentication** between services via API Gateway and IAM.
 
 ### 🎨 User Experience
-- **Medical Disclaimer** prominently displayed
-- **Example Questions** to guide users
-- **Quick Reference Guide** for effective usage
-- **Responsive Design** works on all devices
-- **Professional Styling** appropriate for medical context
+- **Medical Disclaimer** prominently displayed.
+- **Example Questions** to guide users.
+- **Quick Reference Guide** for effective usage.
+- **Professional Styling** appropriate for medical context.
 
-## Customization Options
+---
 
-### Change the AI Model
-```python
-# In the chat_with_ollama function, modify:
-"model": "your-preferred-model",  # e.g., "llama2", "mistral", etc.
-```
+## 💻 Local Backend Execution (for Development/Testing)
 
-### Adjust Response Parameters
-```python
-# Modify these values in the API call:
-"temperature": 0.7,      # Higher = more creative, Lower = more focused
-"max_tokens": 1500,      # Maximum response length
-"top_p": 0.9,           # Nucleus sampling parameter
-```
+You can run the FastAPI application backend locally to test its logic. This setup connects to your **deployed Vertex AI Endpoint** on Google Cloud.
 
-### Add Authentication
-```python
-# In app.launch(), add:
-auth=("username", "password")
-```
+### Prerequisites
 
-### Enable Public Sharing
-```python
-# In app.launch(), set:
-share=True  # Creates a temporary public URL
-```
+1.  **Clone the Repository:** Ensure you have the project code locally.
+2.  **Install Backend Dependencies:** Navigate to the `app-backend/` directory and install the required packages.
+    ```bash
+    cd app-backend
+    pip install -r requirements.txt
+    ```
+3.  **Google Cloud Authentication (Local):** Authenticate your local environment to allow the backend to call GCP services. Run this command once in your terminal and follow the browser login prompts:
+    ```bash
+    gcloud auth application-default login
+    ```
+4.  **Backend Environment Variables:** Ensure the necessary environment variables are set for your terminal session. You can do this by creating a `.env` file in the `app-backend/` directory (requires `python-dotenv` installed, see `main.py`) or by exporting them directly:
+    * **Using `.env` file (`app-backend/.env`):**
+        ```dotenv
+        GCP_PROJECT_ID=drug-to-drug-interaction
+        GCP_REGION=us-central1
+        VERTEX_ENDPOINT_ID=[YOUR_DEPLOYED_VERTEX_AI_ENDPOINT_ID] # The numeric ID
+        ```
+    * **Using `export` (run in the terminal before starting Uvicorn):**
+        ```bash
+        export GCP_PROJECT_ID="drug-to-drug-interaction"
+        export GCP_REGION="us-central1"
+        export VERTEX_ENDPOINT_ID="[YOUR_DEPLOYED_VERTEX_AI_ENDPOINT_ID]"
+        ```
 
-## Troubleshooting
+### Running the Server
 
-### Common Issues
+1.  **Navigate to the `app-backend/` directory** in your terminal (if not already there).
+2.  **Start the Uvicorn server:**
+    ```bash
+    uvicorn main:app --reload --port 8000
+    ```
+3.  The backend API will now be running locally, typically at `http://127.0.0.1:8000`. You can test it using tools like `curl` or Postman, sending requests to `http://127.0.0.1:8000/chat` (POST) or `http://127.0.0.1:8000/health` (GET). Remember that it will make live calls to your Vertex AI endpoint.
 
-1. **"Cannot connect to Ollama"**
-   - Ensure Ollama is running: `ollama serve`
-   - Check if the service is active: `curl http://localhost:11434/api/tags`
+---
 
-2. **"No models found"**
-   - Download a model: `ollama pull llama3.2`
-   - Verify installation: `ollama list`
+## 🛠️ Deployment Notes (For Maintainers)
 
-3. **Slow responses**
-   - Check system resources (RAM/CPU)
-   - Try a smaller model
-   - Reduce `max_tokens` parameter
+* **Source Code:** Organized into three primary directories: `gradio-ui`, `app-backend`, `model-api`. *(Optionally add fine-tuning and evaluation directories)*.
+* **Deployment:** Uses `gcloud` CLI commands to build containers (`gcloud builds submit`), manage artifacts (`Artifact Registry`, `GCS`), deploy services (`gcloud run deploy`), configure API Gateway (`gcloud api-gateway ...`), and manage the Vertex AI Endpoint (`gcloud ai models upload`, `gcloud ai endpoints deploy-model`).
+* **Authentication:**
+    * Frontend to Backend: Public Gradio calls the public API Gateway. The Gateway uses its dedicated service account (`api-gateway-invoker@...`) with the `roles/run.invoker` permission on the backend service to authenticate its requests.
+    * Backend to Vertex AI: The backend Cloud Run service uses its assigned service account (with necessary Vertex AI permissions) to call the Vertex AI endpoint.
+    * Model Container to GCS: The Vertex AI endpoint's internal service account (`custom-online-prediction@...`) needs `roles/storage.objectViewer` on the GCS bucket/object containing the model.
+* **Environment Variables:** Key configurations like the API Gateway URL (for the frontend), GCS model path (for the model container), and Vertex AI endpoint ID (for the backend) are passed via environment variables during deployment (`--set-env-vars` for Cloud Run, `--container-env-vars` for Vertex AI model upload).
+* **Cost:** Be mindful of Vertex AI Endpoint costs (GPU/machine uptime) and potentially API Gateway costs (request-based). Cloud Run costs are primarily request-based. Consider setting Vertex AI `min-replica-count=0` or undeploying the model when not in use to manage costs.
 
-4. **Port conflicts**
-   - Change Gradio port: `server_port=8080`
-   - Change Ollama port: `OLLAMA_HOST=0.0.0.0:11435 ollama serve`
-
-### Performance Tips
-
-- **For better performance:** Use quantized models (4-bit, 8-bit)
-- **For accuracy:** Use larger models like `llama3.2:70b` if you have sufficient RAM
-- **For speed:** Use smaller models like `llama3.2:3b`
-
-This implementation provides a complete, production-ready drug interaction chatbot with a professional medical interface, comprehensive error handling, and optimized user experience specifically designed for pharmaceutical safety queries.
+This GCP-deployed implementation provides a robust, scalable, and secure platform for the specialized drug interaction chatbot, leveraging multiple managed services for an efficient MLOps workflow from fine-tuning to production serving.

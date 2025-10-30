@@ -32,6 +32,9 @@ MANIFEST
 *.manifest
 *.spec
 
+# GGUF and Modelfile
+ft_model/
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
